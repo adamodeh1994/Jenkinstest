@@ -8,20 +8,25 @@ pipeline {
                     // Define your logic here to check if an account's password has changed after 7 days
                     // You can use PowerShell to perform this task
                     powershell(script: '''
-                        # PowerShell script to check password change
-                        $accountName = "YourAccountNameHere"
-                        $lastPasswordChange = (Get-ADUser $accountName -Properties "PasswordLastSet").PasswordLastSet
-                        $currentDate = Get-Date
-                        $passwordAge = $currentDate - $lastPasswordChange
-                        $passwordAgeDays = [math]::Round($passwordAge.TotalDays)
-
-                        if ($passwordAgeDays -gt 7) {
-                            Write-Host "Password for $accountName changed more than 7 days ago."
-                            // You can add additional steps here, like sending notifications or taking actions
-                        } else {
-                            Write-Host "Password for $accountName changed within the last 7 days."
-                        }
-                    ''')
+                      # Set the time interval in minutes to check for password changes
+											$minutesToCheck = 2
+											
+											# Calculate the time threshold
+											$thresholdTime = (Get-Date).AddMinutes(-$minutesToCheck)
+											
+											# Get the Security event log entries for password changes
+											$events = Get-WinEvent -LogName Security | Where-Object {
+											    $_.Id -eq 4723 -or $_.Id -eq 4724 -or $_.Id -eq 4725
+											}
+											
+											# Iterate through the events and check the timestamp
+											foreach ($event in $events) {
+											    if ($event.TimeCreated -ge $thresholdTime) {
+											        Write-Host "User $($event.Properties[0].Value) changed their password within the last $minutesToCheck minutes."
+											        # You can add additional actions here if needed
+											    }
+											}
+										''')
                 }
             }
         }
